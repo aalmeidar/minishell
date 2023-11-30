@@ -7,9 +7,7 @@
 #include <string.h>
 #include "parser.h"
 
-void one_command_exec(char * argv[]);
-void two_command_exec(char * argv1[], char * argv2[]);
-void several_command_exec(tcommand * c, int ncommands);
+void exec(tcommand * c, int ncommands);
 
 int main(void){
     char buf[1024];
@@ -35,15 +33,7 @@ int main(void){
         if (line->background) {
             printf("comando a ejecutarse en background\n");
         }
-        if (line->ncommands == 1){
-            one_command_exec(line->commands[0].argv);
-        }
-        if (line->ncommands == 2){
-            two_command_exec(line->commands[0].argv, line->commands[1].argv);
-        }
-        if (line->ncommands > 2){
-            several_command_exec(line->commands, line->ncommands);
-        }
+        exec(line->commands, line->ncommands);
         for (i=0; i<line->ncommands; i++) {
             printf("orden %d (%s):\n", i, line->commands[i].filename);
 
@@ -56,94 +46,55 @@ int main(void){
     return 0;
 }
 
-void one_command_exec(char * argv[]){
-    pid_t pid;
-    pid = fork();
-    if (pid < 0){
-        fprintf(stderr, "Falló el fork()");
-        exit(-1);
-    }else if (pid == 0){
-        execvp(argv[0], argv);
-        fprintf(stderr, "Se ha producido un error.\n");
-        exit(1);
-    } else {
-        wait(NULL);
-    }
-}
 
-
-void two_command_exec(char * argv1[], char * argv2[]){
-    pid_t pid,pipe_c1_c2[2];
-    if (pipe(pipe_c1_c2) == -1) {
-        fprintf(stderr, "Error al crear las tuberias");
-        exit(-1);
-    }
-
-    pid = fork();
-    if (pid < 0){
-        fprintf(stderr, "Fallo el fork()");
-        exit(-1);
-    }else if (pid == 0){
-        close(pipe_c1_c2[0]);
-        dup2(pipe_c1_c2[1], STDOUT_FILENO);
-        execvp(argv1[0], argv1);
-        fprintf(stderr, "Se ha producido un error.\n");
-        exit(1);
-    }
-
-    pid = fork();
-    if (pid < 0){
-        fprintf(stderr, "Fallo el fork()");
-        exit(-1);
-    }else if (pid == 0){
-        close(pipe_c1_c2[1]);
-        dup2(pipe_c1_c2[0], STDIN_FILENO);
-        execvp(argv2[0], argv2);
-        fprintf(stderr, "Se ha producido un error.\n");
-        exit(1);
-    }
-
-    close(pipe_c1_c2[0]);
-    close(pipe_c1_c2[1]);
-    wait(NULL);
-    wait(NULL);
-}
-
-void several_command_exec(tcommand * commands, int ncommands){
-    //tcommand * commands = (tcommand*) malloc(sizeof(tcommand)*ncommands);
-    pid_t pid, first_pipe[2], second_pipe[2];
-    for (int i = 0; i < ncommands; i++){
-        pid = fork();
-        if (pid < 0){
-            fprintf(stderr, "Fallo el fork()");
-            exit(-1);
-        }else if (pid == 0){
-            if (i == 0){
-                close(first_pipe[0]);
-                close(second_pipe[0]);
-                close(second_pipe[1]);
-                dup2(first_pipe[1], STDOUT_FILENO);
-            }else if (i+1 == ncommands){
-                close(first_pipe[0]);
-                close(first_pipe[1]);
-                close(second_pipe[1]);
-                dup2(second_pipe[0], STDIN_FILENO);
-            }else{
-                close(first_pipe[1]);
-                close(second_pipe[0]);
-                dup2(first_pipe[0], STDIN_FILENO);
-                dup2(second_pipe[1], STDOUT_FILENO);
-            }
-            execvp(commands[i].argv[0], commands[i].argv);
-            fprintf(stderr, "Se ha producido un error.\n");
-            exit(1);
-        }else {
-            wait(NULL);
+void exec(tcommand *commands, int ncommands) {
+    int pipes[ncommands - 1][2], i, j;
+    // Se crean los pipes de la matriz de pipes y se comprueba si ha ocurrido algún error
+    for (i = 0; i < ncommands - 1; i++) {
+        if (pipe(pipes[i]) < 0) {
+            fprintf(stderr, "Error creando la tubería.\n");
+            exit(EXIT_FAILURE);
         }
     }
 
-    close(first_pipe[0]);
-    close(first_pipe[1]);
-    close(second_pipe[0]);
-    close(second_pipe[1]);
+    // Por cada comando se crea un proceso
+    for (i = 0; i < ncommands; i++) {
+        pid_t pid = fork();
+
+        if (pid < 0) {
+            fprintf(stderr, "Fallo el fork().\n");
+            exit(EXIT_FAILURE);
+        } else if (pid == 0) {
+            if (i != 0) {
+                // Si el hijo no es el primero comando leo la entrada del extremo de salida pipe i - 1
+                dup2(pipes[i - 1][0], STDIN_FILENO);
+            }
+            if (i != ncommands - 1) {
+                // Si el hijo no es el último comando escribo la salida del extremo de entrada pipe i
+                dup2(pipes[i][1], STDOUT_FILENO);
+            }
+
+            // Se cierran ambos extremos de todos los pipes
+            for (j = 0; j < ncommands - 1; j++) {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+
+            // Se ejecuta el comando correspondiente a la iteración con sus argumentos
+            execvp(commands[i].argv[0], commands[i].argv);
+            fprintf(stderr, "Error al ejecutar el comando %s.\n", commands[i].argv[0]);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    // Se cierran ambos extremos de todos los pipes
+    for (i = 0; i < ncommands - 1; i++) {
+        close(pipes[i][0]);
+        close(pipes[i][1]);
+    }
+
+    // Se espera a que todos los hijos acaben
+    for (i = 0; i < ncommands; i++) {
+        wait(NULL);
+    }
 }
