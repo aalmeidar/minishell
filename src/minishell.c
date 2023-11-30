@@ -13,11 +13,6 @@ int main(void){
         if (line==NULL) {
             continue;
         }
-		if (strcmp(line->commands[0].argv[0], "cd") == 0) {
-			cd(line->commands[0].argv[1]);
-        	printf("msh > ");
-			continue;
-		}
         exec_line(line);
         printf("msh > ");
     }
