@@ -28,7 +28,7 @@ int main(void){
 
 
 void exec(tline * line) {
-    int pipes[line->ncommands - 1][2], i, j;
+    int pipes[line->ncommands - 1][2], i, j, saved_std[3];
 
     if (line->redirect_input != NULL) {
         int input_fd = open(line->redirect_input, O_RDONLY);
@@ -36,8 +36,8 @@ void exec(tline * line) {
             fprintf(stderr, "[!] Error al abrir el archivo de entrada %s.\n", line->redirect_input);
             exit(EXIT_FAILURE);
         }
+        saved_std[0] = dup(0);
         dup2(input_fd, STDIN_FILENO);
-        close(input_fd);
     }
 
 
@@ -47,8 +47,8 @@ void exec(tline * line) {
             fprintf(stderr, "[!] Error al abrir el archivo de salida %s.\n", line->redirect_output);
             exit(EXIT_FAILURE);
         }
+        saved_std[1] = dup(1);
         dup2(output_fd, STDOUT_FILENO);
-        close(output_fd);
     }
 
     if (line->redirect_error != NULL) {
@@ -57,8 +57,8 @@ void exec(tline * line) {
             fprintf(stderr, "[!] Error al abrir el archivo de salida %s.\n", line->redirect_error);
             exit(EXIT_FAILURE);
         }
+        saved_std[2] = dup(2);
         dup2(output_fd, STDERR_FILENO);
-        close(output_fd);
     }
 
     // Se crean los pipes de la matriz de pipes y se comprueba si ha ocurrido algún error
@@ -108,6 +108,19 @@ void exec(tline * line) {
     // Se espera a que todos los hijos acaben
     for (i = 0; i < line->ncommands; i++) {
         wait(NULL);
+    }
+
+    if (line->redirect_input != NULL){
+        dup2(saved_std[0], 0);
+        close(saved_std[0]);
+    }
+    if (line->redirect_output != NULL){
+        dup2(saved_std[1], 1);
+        close(saved_std[1]);
+    }
+    if (line->redirect_error != NULL){
+        dup2(saved_std[2], 2);
+        close(saved_std[2]);
     }
 }
 
