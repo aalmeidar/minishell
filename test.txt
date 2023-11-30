@@ -1,2 +1,2 @@
-Root:x:0:0:Root:/Root:/bin/bash
-test:x:1000:1000:test,,,:/home/test:/bin/bash
+[19191]+ Running grep test | tr t T &
+msh > TesT:x:1000:1000:TesT,,,:/home/TesT:/bin/bash

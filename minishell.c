@@ -28,7 +28,19 @@ int main(void){
 
 
 void exec(tline * line) {
-    int pipes[line->ncommands - 1][2], i, j, saved_std[3];
+    int pipes[line->ncommands - 1][2], i, j, saved_std[3], dev_null;
+
+    if (line->background == 1){
+        dev_null = open("/dev/null", O_WRONLY);
+        saved_std[0] = dup(0);
+        if (line->redirect_output == NULL) {
+            saved_std[1] = dup(1);
+            dup2(dev_null, 1);
+        }
+        saved_std[2] = dup(2);
+        dup2(dev_null, 0);
+        dup2(dev_null, 2);
+    }
 
     if (line->redirect_input != NULL) {
         int input_fd = open(line->redirect_input, O_RDONLY);
@@ -64,7 +76,7 @@ void exec(tline * line) {
     // Se crean los pipes de la matriz de pipes y se comprueba si ha ocurrido algún error
     for (i = 0; i < line->ncommands - 1; i++) {
         if (pipe(pipes[i]) < 0) {
-            fprintf(stderr, "Error creando la tubería.\n");
+            fprintf(stderr, "[!] Error creando la tubería.\n");
             exit(EXIT_FAILURE);
         }
     }
@@ -74,7 +86,7 @@ void exec(tline * line) {
         pid_t pid = fork();
 
         if (pid < 0) {
-            fprintf(stderr, "Fallo el fork().\n");
+            fprintf(stderr, "[!] Fallo el fork().\n");
             exit(EXIT_FAILURE);
         } else if (pid == 0) {
             if (i != 0) {
@@ -94,7 +106,7 @@ void exec(tline * line) {
 
             // Se ejecuta el comando correspondiente a la iteración con sus argumentos
             execvp(line->commands[i].argv[0], line->commands[i].argv);
-            fprintf(stderr, "Error al ejecutar el comando %s.\n", line->commands[i].argv[0]);
+            fprintf(stderr, "[!] Error al ejecutar el comando %s.\n", line->commands[i].argv[0]);
             exit(EXIT_FAILURE);
         }
     }
@@ -105,9 +117,28 @@ void exec(tline * line) {
         close(pipes[i][1]);
     }
 
-    // Se espera a que todos los hijos acaben
-    for (i = 0; i < line->ncommands; i++) {
-        wait(NULL);
+    // Se espera a que todos los hijos acaben si no esta en background
+    if (line->background == 0){
+        for (i = 0; i < line->ncommands; i++) {
+            wait(NULL);
+        }
+    }else{
+        printf("[%d]+ Running ", getpid());
+        for (i = 0; i < line->ncommands; i++){
+            for (j = 0; j < line->commands[i].argc; j++){
+                printf("%s ", line->commands[i].argv[j]);
+            }
+            if (i + 1 != line->ncommands){
+                printf("| ");
+            }
+        }
+        printf("&\n");
+        dup2(saved_std[0], 0);
+        dup2(saved_std[1], 2);
+        dup2(saved_std[2], 2);
+        close(saved_std[0]);
+        close(saved_std[1]);
+        close(saved_std[2]);
     }
 
     if (line->redirect_input != NULL){
