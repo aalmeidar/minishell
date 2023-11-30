@@ -1,2 +1,0 @@
-[19191]+ Running grep test | tr t T &
-msh > TesT:x:1000:1000:TesT,,,:/home/TesT:/bin/bash

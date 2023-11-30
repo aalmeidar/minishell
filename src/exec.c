@@ -6,29 +6,11 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <string.h>
-#include "parser.h"
+#include "exec.h"
+#include "redirect.h"
 
-void exec(tline * line);
-
-int main(void){
-    char buf[1024];
-    tline * line;
-
-    printf("msh > ");
-    while (fgets(buf, 1024, stdin)) {
-        line = tokenize(buf);
-        if (line==NULL) {
-            continue;
-        }
-        exec(line);
-        printf("msh > ");
-    }
-    return 0;
-}
-
-
-void exec(tline * line) {
-    int pipes[line->ncommands - 1][2], i, j, saved_std[3], dev_null;
+void exec_line(tline* line) {
+	int pipes[line->ncommands - 1][2], i, j, saved_std[3], dev_null;
 
     if (line->background == 1){
         dev_null = open("/dev/null", O_WRONLY);
@@ -41,37 +23,33 @@ void exec(tline * line) {
         dup2(dev_null, 0);
         dup2(dev_null, 2);
     }
-
+	
+	// Redireccionar el input si está indicado
     if (line->redirect_input != NULL) {
-        int input_fd = open(line->redirect_input, O_RDONLY);
-        if (input_fd < 0) {
-            fprintf(stderr, "[!] Error al abrir el archivo de entrada %s.\n", line->redirect_input);
-            exit(EXIT_FAILURE);
-        }
-        saved_std[0] = dup(0);
-        dup2(input_fd, STDIN_FILENO);
-    }
+    	saved_std[STDIN_FILENO] = redirect_input(line->redirect_input);
+		if (saved_std[STDIN_FILENO] == -1) {
+			fprintf(stderr, "[!] Error: %s", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
 
-
+	// Redireccionar el output si está indicado
     if (line->redirect_output != NULL) {
-        int output_fd = open(line->redirect_output, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (output_fd < 0) {
-            fprintf(stderr, "[!] Error al abrir el archivo de salida %s.\n", line->redirect_output);
-            exit(EXIT_FAILURE);
-        }
-        saved_std[1] = dup(1);
-        dup2(output_fd, STDOUT_FILENO);
+    	saved_std[STDOUT_FILENO] = redirect_output(line->redirect_output);
+		if (saved_std[STDOUT_FILENO] == -1) {
+			fprintf(stderr, "[!] Error: %s", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
     }
 
+	// Redireccionar los errores si está indicado
     if (line->redirect_error != NULL) {
-        int output_fd = open(line->redirect_error, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (output_fd < 0) {
-            fprintf(stderr, "[!] Error al abrir el archivo de salida %s.\n", line->redirect_error);
-            exit(EXIT_FAILURE);
-        }
-        saved_std[2] = dup(2);
-        dup2(output_fd, STDERR_FILENO);
-    }
+    	saved_std[STDERR_FILENO] = redirect_error(line->redirect_error);
+		if (saved_std[STDERR_FILENO] == -1) {
+			fprintf(stderr, "[!] Error: %s", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
 
     // Se crean los pipes de la matriz de pipes y se comprueba si ha ocurrido algún error
     for (i = 0; i < line->ncommands - 1; i++) {
@@ -141,17 +119,25 @@ void exec(tline * line) {
         close(saved_std[2]);
     }
 
+	// Si se ha redireccionado el input, volver al estado original
     if (line->redirect_input != NULL){
-        dup2(saved_std[0], 0);
-        close(saved_std[0]);
-    }
+    	if (redirect_std_fd(STDIN_FILENO, saved_std[STDIN_FILENO]) == -1){
+			fprintf(stderr, "[!] Error: %s", strerror(errno));	
+			exit(EXIT_FAILURE);
+		}
+	}
+	// Si se ha redireccionado el output, volver al estado original
     if (line->redirect_output != NULL){
-        dup2(saved_std[1], 1);
-        close(saved_std[1]);
+    	if (redirect_std_fd(STDOUT_FILENO, saved_std[STDOUT_FILENO]) == -1){
+			fprintf(stderr, "[!] Error: %s", strerror(errno));	
+			exit(EXIT_FAILURE);
+		}
     }
+	// Si se han redireccionado los errores, volver al estado original
     if (line->redirect_error != NULL){
-        dup2(saved_std[2], 2);
-        close(saved_std[2]);
+    	if (redirect_std_fd(STDERR_FILENO, saved_std[STDERR_FILENO]) == -1){
+			fprintf(stderr, "[!] Error: %s", strerror(errno));	
+			exit(EXIT_FAILURE);
+		}
     }
 }
-
