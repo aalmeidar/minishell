@@ -1,7 +1,7 @@
 #include <stdio.h>
+#include <string.h>
 #include "exec.h"
-
-void exec(tline * line);
+#include "builtin.h"
 
 int main(void){
     char buf[1024];
@@ -13,6 +13,11 @@ int main(void){
         if (line==NULL) {
             continue;
         }
+		if (strcmp(line->commands[0].argv[0], "cd") == 0) {
+			cd(line->commands[0].argv[1]);
+        	printf("msh > ");
+			continue;
+		}
         exec_line(line);
         printf("msh > ");
     }
