@@ -1,2 +1,2 @@
-[19191]+ Running grep test | tr t T &
-msh > TesT:x:1000:1000:TesT,,,:/home/TesT:/bin/bash
+-rw-r--r-- 1 test test  20730 nov 30 11:48 libparser_64.a
+-rw-r--r-- 1 test test    267 nov 30 11:48 parser.h

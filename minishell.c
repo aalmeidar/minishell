@@ -28,49 +28,39 @@ int main(void){
 
 
 void exec(tline * line) {
-    int pipes[line->ncommands - 1][2], i, j, saved_std[3], dev_null;
+    int pipes[line->ncommands - 1][2], i, j, saved_std[3], dev_null, input_fd, output_fd;
 
-    if (line->background == 1){
-        dev_null = open("/dev/null", O_WRONLY);
-        saved_std[0] = dup(0);
-        if (line->redirect_output == NULL) {
-            saved_std[1] = dup(1);
-            dup2(dev_null, 1);
+    if (line->background == 1 || line->redirect_input != NULL || line->redirect_output != NULL || line->redirect_error != NULL){
+        saved_std[0] = dup(STDIN_FILENO);
+        saved_std[1] = dup(STDOUT_FILENO);
+        saved_std[2] = dup(STDERR_FILENO);
+        if (line->background == 1){
+            dev_null = open("/dev/null", O_WRONLY);
+            dup2(dev_null, STDIN_FILENO);
+            dup2(dev_null, STDOUT_FILENO);
+            dup2(dev_null, STDERR_FILENO);
         }
-        saved_std[2] = dup(2);
-        dup2(dev_null, 0);
-        dup2(dev_null, 2);
-    }
-
-    if (line->redirect_input != NULL) {
-        int input_fd = open(line->redirect_input, O_RDONLY);
-        if (input_fd < 0) {
-            fprintf(stderr, "[!] Error al abrir el archivo de entrada %s.\n", line->redirect_input);
-            exit(EXIT_FAILURE);
+        if (line->redirect_input != NULL) {
+            input_fd = open(line->redirect_input, O_RDONLY);
+            if (input_fd < 0) {
+                fprintf(stderr, "[!] Error al abrir el archivo de entrada %s.\n", line->redirect_input);
+                exit(EXIT_FAILURE);
+            }
+            dup2(input_fd, STDIN_FILENO);
         }
-        saved_std[0] = dup(0);
-        dup2(input_fd, STDIN_FILENO);
-    }
-
-
-    if (line->redirect_output != NULL) {
-        int output_fd = open(line->redirect_output, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (output_fd < 0) {
-            fprintf(stderr, "[!] Error al abrir el archivo de salida %s.\n", line->redirect_output);
-            exit(EXIT_FAILURE);
+        if (line->redirect_output != NULL || line->redirect_error != NULL){
+            output_fd = open(line->redirect_output, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (output_fd < 0) {
+                fprintf(stderr, "[!] Error al abrir el archivo de salida %s.\n", line->redirect_output);
+                exit(EXIT_FAILURE);
+            }
+            if (line->redirect_output != NULL) {
+                dup2(output_fd, STDOUT_FILENO);
+            }
+            if (line->redirect_error != NULL) {
+                dup2(output_fd, STDERR_FILENO);
+            }
         }
-        saved_std[1] = dup(1);
-        dup2(output_fd, STDOUT_FILENO);
-    }
-
-    if (line->redirect_error != NULL) {
-        int output_fd = open(line->redirect_error, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (output_fd < 0) {
-            fprintf(stderr, "[!] Error al abrir el archivo de salida %s.\n", line->redirect_error);
-            exit(EXIT_FAILURE);
-        }
-        saved_std[2] = dup(2);
-        dup2(output_fd, STDERR_FILENO);
     }
 
     // Se crean los pipes de la matriz de pipes y se comprueba si ha ocurrido algún error
@@ -117,6 +107,15 @@ void exec(tline * line) {
         close(pipes[i][1]);
     }
 
+    if (line->background == 1 || line->redirect_input != NULL || line->redirect_output != NULL || line->redirect_error != NULL){
+        dup2(saved_std[0], STDIN_FILENO);
+        dup2(saved_std[1], STDOUT_FILENO);
+        dup2(saved_std[2], STDERR_FILENO);
+        close(saved_std[0]);
+        close(saved_std[1]);
+        close(saved_std[2]);
+    }
+
     // Se espera a que todos los hijos acaben si no esta en background
     if (line->background == 0){
         for (i = 0; i < line->ncommands; i++) {
@@ -133,25 +132,5 @@ void exec(tline * line) {
             }
         }
         printf("&\n");
-        dup2(saved_std[0], 0);
-        dup2(saved_std[1], 2);
-        dup2(saved_std[2], 2);
-        close(saved_std[0]);
-        close(saved_std[1]);
-        close(saved_std[2]);
-    }
-
-    if (line->redirect_input != NULL){
-        dup2(saved_std[0], 0);
-        close(saved_std[0]);
-    }
-    if (line->redirect_output != NULL){
-        dup2(saved_std[1], 1);
-        close(saved_std[1]);
-    }
-    if (line->redirect_error != NULL){
-        dup2(saved_std[2], 2);
-        close(saved_std[2]);
     }
 }
-
