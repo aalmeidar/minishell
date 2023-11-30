@@ -98,7 +98,6 @@ void two_command_exec(char * argv1[], char * argv2[]){
     }else if (pid == 0){
         close(pipe_c1_c2[1]);
         dup2(pipe_c1_c2[0], STDIN_FILENO);
-        char * command[1024];
         execvp(argv2[0], argv2);
         fprintf(stderr, "Se ha producido un error.\n");
         exit(1);
@@ -110,9 +109,41 @@ void two_command_exec(char * argv1[], char * argv2[]){
     wait(NULL);
 }
 
-void several_command_exec(tcommand * c, int ncommands){
-    tcommand * commands = (tcommand*) malloc(sizeof(tcommand)*ncommands);
+void several_command_exec(tcommand * commands, int ncommands){
+    //tcommand * commands = (tcommand*) malloc(sizeof(tcommand)*ncommands);
+    pid_t pid, first_pipe[2], second_pipe[2];
     for (int i = 0; i < ncommands; i++){
-
+        pid = fork();
+        if (pid < 0){
+            fprintf(stderr, "Fallo el fork()");
+            exit(-1);
+        }else if (pid == 0){
+            if (i == 0){
+                close(first_pipe[0]);
+                close(second_pipe[0]);
+                close(second_pipe[1]);
+                dup2(first_pipe[1], STDOUT_FILENO);
+            }else if (i+1 == ncommands){
+                close(first_pipe[0]);
+                close(first_pipe[1]);
+                close(second_pipe[1]);
+                dup2(second_pipe[0], STDIN_FILENO);
+            }else{
+                close(first_pipe[1]);
+                close(second_pipe[0]);
+                dup2(first_pipe[0], STDIN_FILENO);
+                dup2(second_pipe[1], STDOUT_FILENO);
+            }
+            execvp(commands[i].argv[0], commands[i].argv);
+            fprintf(stderr, "Se ha producido un error.\n");
+            exit(1);
+        }else {
+            wait(NULL);
+        }
     }
+
+    close(first_pipe[0]);
+    close(first_pipe[1]);
+    close(second_pipe[0]);
+    close(second_pipe[1]);
 }
