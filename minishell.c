@@ -8,7 +8,17 @@
 #include <string.h>
 #include "parser.h"
 
+typedef struct {
+    pid_t pid;
+    char command[1024];
+} job_t;
+
+job_t jobs_stack[30];
+int num_jobs = 0;
+
 void exec(tline * line);
+void jobs();
+void fg(char * arg);
 
 int main(void){
     char buf[1024];
@@ -20,10 +30,59 @@ int main(void){
         if (line==NULL) {
             continue;
         }
+        if (strcmp(line->commands[0].argv[0], "jobs") == 0) {
+            jobs();
+            printf("msh > ");
+            continue;
+        }
+        if (strcmp(line->commands[0].argv[0], "fg") == 0) {
+            if (line->commands[0].argc > 1){
+                fg((line->commands[0].argv[1]));
+            }else{
+                fg(NULL);
+            }
+            printf("msh > ");
+            continue;
+        }
         exec(line);
         printf("msh > ");
     }
     return 0;
+}
+
+void jobs(){
+    for (int i = 0; i < num_jobs; ++i) {
+        if (i + 2 == num_jobs){
+            printf("[%d]- %d  Ejecutando\t\t\t%s", i + 1, jobs_stack[i].pid, jobs_stack[i].command);
+        }else if(i + 1 == num_jobs){
+            printf("[%d]+ %d  Ejecutando\t\t\t%s", i + 1, jobs_stack[i].pid, jobs_stack[i].command);
+        }else{
+            printf("[%d] %d  Ejecutando\t\t\t%s", i + 1, jobs_stack[i].pid, jobs_stack[i].command);
+        }
+    }
+}
+
+void fg(char * arg){
+    int pid, job_id, status;
+    if (arg == NULL){
+        job_id = num_jobs-1;
+        pid = jobs_stack[num_jobs - 1].pid;
+    }else{
+        char * endptr;
+        long parsed = strtol(arg, &endptr, 10);
+        if (*endptr != '\0' || parsed < 1 || parsed > num_jobs || errno == ERANGE) {
+            printf("Número de trabajo en segundo plano inválido\n");
+            return;
+        }
+        job_id = ((int)parsed) - 1;
+        pid = jobs_stack[job_id].pid;
+    }
+    for (int i = job_id; i < num_jobs; i++){
+        jobs_stack[i].pid = jobs_stack[i + 1].pid;
+        strcpy(jobs_stack[i].command, jobs_stack[i + 1].command);
+    }
+    num_jobs--;
+    waitpid(pid, &status, 0);
 }
 
 
@@ -98,6 +157,10 @@ void exec(tline * line) {
             execvp(line->commands[i].argv[0], line->commands[i].argv);
             fprintf(stderr, "[!] Error al ejecutar el comando %s.\n", line->commands[i].argv[0]);
             exit(EXIT_FAILURE);
+        }else{
+            if (line->background == 1){
+                jobs_stack[num_jobs].pid = pid;
+            }
         }
     }
 
@@ -122,15 +185,21 @@ void exec(tline * line) {
             wait(NULL);
         }
     }else{
-        printf("[%d]+ Running ", getpid());
+        char command[1024];
+        command[0] = '\0';
+        printf("[%d]+ Running ", jobs_stack[num_jobs].pid);
         for (i = 0; i < line->ncommands; i++){
             for (j = 0; j < line->commands[i].argc; j++){
-                printf("%s ", line->commands[i].argv[j]);
+                strcat(command, line->commands[i].argv[j]);
+                strcat(command, " ");
             }
             if (i + 1 != line->ncommands){
-                printf("| ");
+                strcat(command, "| ");
             }
         }
-        printf("&\n");
+        strcat(command, "&\n");
+        printf("%s", command);
+        strncpy(jobs_stack[num_jobs].command, command, 1024);
+        num_jobs++;
     }
 }
