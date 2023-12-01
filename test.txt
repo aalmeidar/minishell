@@ -1,2 +1,12 @@
--rw-r--r-- 1 test test  20730 nov 30 11:48 libparser_64.a
--rw-r--r-- 1 test test    267 nov 30 11:48 parser.h
+total 916
+dRwxR-xR-x 4 test test   4096 dic  1 15:45 .
+dRwxR-xR-x 7 test test   4096 nov 30 11:47 ..
+dRwxR-xR-x 8 test test   4096 dic  1 15:27 .git
+-Rw-R--R-- 1 test test     29 nov 30 13:31 .gitignoRe
+dRwxR-xR-x 2 test test   4096 dic  1 12:54 .idea
+-Rw-R--R-- 1 test test  20730 nov 30 11:48 libpaRseR_64.a
+-RwxR-xR-x 1 test test 876072 dic  1 15:45 minishell
+-Rw-R--R-- 1 test test   7199 dic  1 15:45 minishell.c
+-Rw-R--R-- 1 test test    267 nov 30 11:48 paRseR.h
+-Rw-R--R-- 1 test test     11 nov 30 11:47 README.md
+-Rw-R--R-- 1 test test      0 dic  1 15:45 test.txt

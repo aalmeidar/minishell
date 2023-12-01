@@ -51,13 +51,30 @@ int main(void){
 }
 
 void jobs(){
-    for (int i = 0; i < num_jobs; ++i) {
-        if (i + 2 == num_jobs){
-            printf("[%d]- %d  Ejecutando\t\t\t%s", i + 1, jobs_stack[i].pid, jobs_stack[i].command);
-        }else if(i + 1 == num_jobs){
-            printf("[%d]+ %d  Ejecutando\t\t\t%s", i + 1, jobs_stack[i].pid, jobs_stack[i].command);
-        }else{
-            printf("[%d] %d  Ejecutando\t\t\t%s", i + 1, jobs_stack[i].pid, jobs_stack[i].command);
+    int i, j;
+    if (num_jobs > 0){
+        int state;
+        for (j = 0; j < num_jobs; j++){
+            state = waitpid(jobs_stack[j].pid, NULL, WNOHANG);
+            if (state < 0){
+                continue;
+            }
+            else if (state != 0 ){
+                printf("[%d] %d  Hecho\t\t\t%s", j + 1, jobs_stack[j].pid, jobs_stack[j].command);
+                for (i = j; i < num_jobs; i++){
+                    jobs_stack[i].pid = jobs_stack[i + 1].pid;
+                    strcpy(jobs_stack[i].command, jobs_stack[i + 1].command);
+                }
+                num_jobs--;
+            }else{
+                if (j + 2 == num_jobs){
+                    printf("[%d]- %d  Ejecutando\t\t\t%s", j + 1, jobs_stack[j].pid, jobs_stack[j].command);
+                }else if(j + 1 == num_jobs){
+                    printf("[%d]+ %d  Ejecutando\t\t\t%s", j + 1, jobs_stack[j].pid, jobs_stack[j].command);
+                }else{
+                    printf("[%d] %d  Ejecutando\t\t\t%s", j + 1, jobs_stack[j].pid, jobs_stack[j].command);
+                }
+            }
         }
     }
 }
@@ -77,12 +94,14 @@ void fg(char * arg){
         job_id = ((int)parsed) - 1;
         pid = jobs_stack[job_id].pid;
     }
-    for (int i = job_id; i < num_jobs; i++){
-        jobs_stack[i].pid = jobs_stack[i + 1].pid;
-        strcpy(jobs_stack[i].command, jobs_stack[i + 1].command);
-    }
-    num_jobs--;
     waitpid(pid, &status, 0);
+    if (WIFEXITED(status)){
+        for (int i = job_id; i < num_jobs; i++){
+            jobs_stack[i].pid = jobs_stack[i + 1].pid;
+            strcpy(jobs_stack[i].command, jobs_stack[i + 1].command);
+        }
+        num_jobs--;
+    }
 }
 
 
@@ -201,5 +220,22 @@ void exec(tline * line) {
         printf("%s", command);
         strncpy(jobs_stack[num_jobs].command, command, 1024);
         num_jobs++;
+    }
+
+    if (num_jobs > 0){
+        int state;
+        for (j = 0; j < num_jobs; j++){
+            state = waitpid(jobs_stack[j].pid, NULL, WNOHANG);
+            if (state < 0){
+                continue;
+            }
+            else if (state != 0 ){
+                for (i = j; i < num_jobs; i++){
+                    jobs_stack[i].pid = jobs_stack[i + 1].pid;
+                    strcpy(jobs_stack[i].command, jobs_stack[i + 1].command);
+                }
+                num_jobs--;
+            }
+        }
     }
 }
