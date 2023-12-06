@@ -8,3 +8,4 @@ void prompt() {
 	getcwd(buf, 1024);
 	printf(BLUE "msh@%s" RESET ":" CYAN "%s" GREEN " > " RESET, getlogin(), buf);
 }
+

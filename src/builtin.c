@@ -31,6 +31,12 @@ void cd(char* dir) {
 void jobs() {
 	check_jobs(1);
 }
+
 void fg(char* arg) {
-	printf("fg");	
+    fg_job(arg);
+}
+
+void quit(){
+    delete_jobs();
+    exit(0);
 }

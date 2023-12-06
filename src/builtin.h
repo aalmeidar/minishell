@@ -4,4 +4,5 @@
 void cd(char* dir);
 void jobs();
 void fg(char* arg);
+void quit();
 #endif

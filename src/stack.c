@@ -3,8 +3,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <errno.h>
 #include "job.h"
 #include "stack.h"
+#include "exec.h"
 
 void push(stackJobs_t* s, job_t j) {
 	node_t* newNode = (node_t*) malloc(sizeof(node_t));
@@ -12,6 +14,18 @@ void push(stackJobs_t* s, job_t j) {
 	newNode->nextNode = s->top;
 	s->top = newNode;
 	s->size++;
+}
+
+job_t get(stackJobs_t* s, int index){
+    node_t *node;
+    int i;
+    i = 0;
+    node = s->top;
+    while(node != NULL && i < index) {
+        node = node->nextNode;
+        i++;
+    }
+    return node->job;
 }
 
 job_t pop(stackJobs_t* s) {
@@ -54,7 +68,7 @@ void delete_stack(stackJobs_t* s) {
 //	}
 //}
 
-void pop_pid(stackJobs_t *s, pid_t* pid) {
+void pop_pid(stackJobs_t *s, pid_t pid) {
 	node_t *prev, *node;
     int deleted;
     deleted = 0;
@@ -79,7 +93,7 @@ void pop_pid(stackJobs_t *s, pid_t* pid) {
 
 // Si output es distinto de 0, se saca por STDOUT log.
 void check_jobs_stack(stackJobs_t* s, int output) {
-	pid_t pid, i, j, finished = 0, * pids;
+	pid_t pid, i, j, finished, * pids;
 	char c;
 	char command[1024];
 	node_t *node;
@@ -88,6 +102,7 @@ void check_jobs_stack(stackJobs_t* s, int output) {
 
 	node = s->top;
 	while (node != NULL) {
+        finished = 0;
         pids = get_pids(&(node->job));
         for (j = 0; j < node->job.index; j++){
             pid = waitpid(pids[j], NULL, WNOHANG);
@@ -98,31 +113,59 @@ void check_jobs_stack(stackJobs_t* s, int output) {
                 finished++;
             }
         }
+        c = ' ';
+        if(node == s->top->nextNode) {
+            c = '-';
+        } else if (node == s->top) {
+            c = '+';
+        }
         if (finished == node->job.index) { // El proceso ha terminado
 			if(output) {
                 get_command(&(node->job), command);
-                printf("[%d] %d  Hecho\t\t\t%s\n", i, pid, command);
+                printf("[%d]%c %d  Hecho\t\t\t%s\n", i, c, pids[node->job.index-1], command);
             }
-			pop_pid(s, get_pids(&(node->job)));
+			pop_pid(s, get_pids(&(node->job))[node->job.index-1]);
 		} else if (output != 0) {
-			c = ' ';
-			if(node == s->top->nextNode) {
-				c = '-';
-			} else if (node == s->top) {
-				c = '+';
-			}
             get_command(&(node->job), command);
-            printf("[%d]%c %d  Ejecutando\t\t\t%s\n", i, c, pid, command);
+            printf("[%d]%c %d  Ejecutando\t\t\t%s\n", i, c, pids[node->job.index-1], command);
 		}
         node = node->nextNode;
 		i--;
 	}
 }
+
+
+void fg_job_stack(char * arg, stackJobs_t * s){
+    int size, i;
+    job_t j;
+    pid_t * pids;
+    size = size_stack(s);
+    if (arg == NULL){
+        j = peek(s);
+    }else{
+        char * endptr;
+        long parsed = strtol(arg, &endptr, 10);
+        if (*endptr != '\0' || parsed < 1 || parsed > size || errno == ERANGE) {
+            printf("[!] Número de trabajo en segundo plano inválido\n");
+            return;
+        }
+        j = get(s ,((int)parsed) - 1);
+    }
+    pids = get_pids(&(j));
+    pop_pid(s, pids[j.index-1]);
+    signal(SIGINT, sig_handler);
+    for (i = 0; i < j.index; i++){
+        waitpid(pids[i], NULL, 0);
+    }
+}
+
+
 stackJobs_t* init_stackJobs() {
     stackJobs_t* s = (stackJobs_t *) malloc(sizeof(stackJobs_t));
     s->top = NULL;
     s->size = 0;
     return s;
 }
+
 
 

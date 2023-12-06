@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 #include "exec.h"
 #include "builtin.h"
 #include "utils.h"
@@ -9,11 +10,11 @@ int main(void){
     init_jobs();
     char buf[1024];
     tline * line;
-
-
+    signal(SIGINT, SIG_IGN);
 	prompt();
     while (fgets(buf, 1024, stdin)) {
         line = tokenize(buf);
+        check_jobs(0);
         if (line == NULL || line->commands==NULL ) {
             prompt();
             continue;
@@ -39,7 +40,10 @@ int main(void){
 			prompt();
         	continue;
     	}
-	
+
+        if (strcmp(line->commands[0].argv[0], "exit") == 0) {
+            quit();
+        }
 		// Ejecutar la linea entera
         exec_line(line);
 		prompt();

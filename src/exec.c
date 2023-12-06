@@ -12,6 +12,7 @@
 #include "background.h"
 #include "job.h"
 
+pid_t pid;
 
 void restore_line(tline* line, char* command) {
 	int i, j;
@@ -28,19 +29,28 @@ void restore_line(tline* line, char* command) {
 	strcat(command, "&");
 }
 
+void sig_handler(int sig){
+    if (pid == 0){
+        kill(getppid(), SIGKILL);
+    }
+}
+
 void exec_line(tline* line) {
 	int pipes[line->ncommands - 1][2], i, j, saved_std[3];
 	char command[1024];
-	pid_t pid;
 	job_t job;
+
+    if (line->background == 0){
+        signal(SIGINT, sig_handler);
+    }
 
 	// Redireccionar STDIN, STDOUT, STDERR.
     if (line->background == 1 || line->redirect_input != NULL || line->redirect_output != NULL || line->redirect_error != NULL){
-		
+
 		if (line->redirect_input != NULL) {
 			saved_std[STDIN_FILENO] = redirect_input(line->redirect_input);
 		} else if (line->background) {
-			saved_std[STDIN_FILENO] = redirect_input("/dev/null");	
+			saved_std[STDIN_FILENO] = redirect_input("/dev/null");
 		}
 		if (saved_std[STDIN_FILENO] == -1) {
 			fprintf(stderr, RED "[!] Error: %s" RESET, strerror(errno));
@@ -49,7 +59,7 @@ void exec_line(tline* line) {
 		if (line->redirect_output != NULL) {
 			saved_std[STDOUT_FILENO] = redirect_output(line->redirect_output);
 		} else if (line->background) {
-			saved_std[STDOUT_FILENO] = redirect_output("/dev/null");	
+			saved_std[STDOUT_FILENO] = redirect_output("/dev/null");
 		}
 		if (saved_std[STDOUT_FILENO] == -1) {
 			fprintf(stderr, RED "[!] Error: %s" RESET, strerror(errno));
@@ -58,7 +68,7 @@ void exec_line(tline* line) {
 		if (line->redirect_error != NULL) {
 			saved_std[STDERR_FILENO] = redirect_error(line->redirect_error);
 		} else if (line->background) {
-			saved_std[STDERR_FILENO] = redirect_error("/dev/null");	
+			saved_std[STDERR_FILENO] = redirect_error("/dev/null");
 		}
 		saved_std[STDERR_FILENO] = redirect_error("/dev/null");
 		if (saved_std[STDERR_FILENO] == -1) {
@@ -130,26 +140,26 @@ void exec_line(tline* line) {
 	// Si se ha redireccionado el input, volver al estado original
     if (line->redirect_input != NULL || line->background == 1){
     	if (redirect_std_fd(STDIN_FILENO, saved_std[STDIN_FILENO]) == -1){
-			fprintf(stderr, "[!] Error: %s", strerror(errno));	
+			fprintf(stderr, "[!] Error: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}
 	// Si se ha redireccionado el output, volver al estado original
     if (line->redirect_output != NULL || line->background == 1){
     	if (redirect_std_fd(STDOUT_FILENO, saved_std[STDOUT_FILENO]) == -1){
-			fprintf(stderr, "[!] Error: %s", strerror(errno));	
+			fprintf(stderr, "[!] Error: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
     }
 	// Si se han redireccionado los errores, volver al estado original
     if (line->redirect_error != NULL || line->background == 1){
     	if (redirect_std_fd(STDERR_FILENO, saved_std[STDERR_FILENO]) == -1){
-			fprintf(stderr, "[!] Error: %s", strerror(errno));	
+			fprintf(stderr, "[!] Error: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
     }
 
-	// Se espra a que todos los hijos acaben si no esta en background
+	// Se espera a que todos los hijos acaben si no esta en background
 	if (line->background == 0) {
 		for(i = 0; i < line->ncommands; i++) {
 			wait(NULL);
@@ -161,7 +171,4 @@ void exec_line(tline* line) {
 		set_command(&job, command);
 		save_job(&job);
 	}
-
-	check_jobs(0);
-
 }

@@ -25,6 +25,6 @@ void get_command(job_t* j, char* command) {
 	strcpy(command, j->command);
 }
 
-int equal_pid(job_t* j, pid_t* pid) {
-	return j->pid == pid;
+int equal_pid(job_t* j, pid_t pid) {
+	return j->pid[j->index-1] == pid;
 }

@@ -13,5 +13,5 @@ void set_pid(job_t* j, pid_t pid);
 void set_command(job_t* j, char* command);
 pid_t * get_pids(job_t* j);
 void get_command(job_t* j, char* command);
-int equal_pid(job_t* j, pid_t* pid);
+int equal_pid(job_t* j, pid_t pid);
 #endif

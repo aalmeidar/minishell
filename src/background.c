@@ -24,3 +24,9 @@ void delete_jobs() {
 	delete_stack(jobs_stack);
 }
 
+void fg_job(char * arg){
+    if (!is_empty(jobs_stack)){
+        fg_job_stack(arg, jobs_stack);
+    }
+}
+
