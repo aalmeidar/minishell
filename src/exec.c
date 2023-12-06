@@ -86,6 +86,7 @@ void exec_line(tline* line) {
 
     // Por cada comando se crea un proceso
     for (i = 0; i < line->ncommands; i++) {
+        job = init_job();
         pid = fork();
 
         if (pid < 0) {
@@ -113,12 +114,11 @@ void exec_line(tline* line) {
             fprintf(stderr, RED "[!] Error al ejecutar el comando %s.\n" RESET, line->commands[i].argv[0]);
             exit(EXIT_FAILURE);
 
-        } 
-		/*else {
+        }else {
 			if (line->background == 1) {
-				jobs_stack[num_jobs].pid = pid;
+                set_pid(&job, pid);
 			}
-		}*/
+		}
     }
 
     // Se cierran ambos extremos de todos los pipes en el proceso padre
@@ -158,7 +158,6 @@ void exec_line(tline* line) {
 		restore_line(line, command);
         printf("[%d]+ Running ", pid);
         printf("%s\n", command);
-		set_pid(&job, pid);
 		set_command(&job, command);
 		save_job(&job);
 	}

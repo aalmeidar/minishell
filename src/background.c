@@ -8,7 +8,7 @@
 stackJobs_t* jobs_stack;
 
 void init_jobs(){
-    jobs_stack = init_stackJobs(jobs_stack);
+    jobs_stack = init_stackJobs();
 }
 
 void save_job(job_t* j) {

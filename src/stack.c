@@ -44,15 +44,15 @@ void delete_stack(stackJobs_t* s) {
     free(s);
 }
 
-void get_all_pids(stackJobs_t *s, pid_t *pids) {
-	int i;
-	node_t* node;
-	node = s->top;
-	for(i = 0; i < size_stack(s); i++) {
-		pids[i] = get_pid(&(node->job));
-		node = node->nextNode;
-	}
-}
+//void get_all_pids(stackJobs_t *s, pid_t *pids) {
+//	int i;
+//	node_t* node;
+//	node = s->top;
+//	for(i = 0; i < size_stack(s); i++) {
+//		pids[i] = get_pid(&(node->job));
+//		node = node->nextNode;
+//	}
+//}
 
 void pop_pid(stackJobs_t *s, pid_t* pid) {
 	node_t *prev, *node;
@@ -77,9 +77,9 @@ void pop_pid(stackJobs_t *s, pid_t* pid) {
 	}
 }
 
-// Si output es distinto de 0, se saca por STDIN log.
+// Si output es distinto de 0, se saca por STDOUT log.
 void check_jobs_stack(stackJobs_t* s, int output) {
-	pid_t pid, i;
+	pid_t pid, i, j, finished = 0, * pids;
 	char c;
 	char command[1024];
 	node_t *node;
@@ -88,16 +88,22 @@ void check_jobs_stack(stackJobs_t* s, int output) {
 
 	node = s->top;
 	while (node != NULL) {
-		pid = waitpid(get_pid(&node->job), NULL, WNOHANG);
-		if (pid < 0) {
-			// Error
-			continue;
-		} else if (pid != 0) { // El proceso ha terminado
+        pids = get_pids(&(node->job));
+        for (j = 0; j < node->job.index; j++){
+            pid = waitpid(pids[j], NULL, WNOHANG);
+            if (pid < 0) {
+                // Error
+                continue;
+            }else if (pid != 0){
+                finished++;
+            }
+        }
+        if (finished == node->job.index) { // El proceso ha terminado
 			if(output) {
                 get_command(&(node->job), command);
-                printf("[%d] %d  Hecho\t\t\t%s\n", i, get_pid(&(node->job)), command);
+                printf("[%d] %d  Hecho\t\t\t%s\n", i, pid, command);
             }
-			pop_pid(s, &pid);
+			pop_pid(s, get_pids(&(node->job)));
 		} else if (output != 0) {
 			c = ' ';
 			if(node == s->top->nextNode) {
@@ -105,10 +111,8 @@ void check_jobs_stack(stackJobs_t* s, int output) {
 			} else if (node == s->top) {
 				c = '+';
 			}
-			if(output) {
-				get_command(&(node->job), command);
-				printf("[%d]%c %d  Ejecutando\t\t\t%s\n", i, c, get_pid(&(node->job)), command);
-			}
+            get_command(&(node->job), command);
+            printf("[%d]%c %d  Ejecutando\t\t\t%s\n", i, c, pid, command);
 		}
         node = node->nextNode;
 		i--;
