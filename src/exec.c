@@ -22,8 +22,24 @@ void restore_line(tline* line, char* command) {
                 strcat(command, line->commands[i].argv[j]);
                 strcat(command, " ");
             }
+            if (i == 0 && line->redirect_input){
+                strcat(command, "< ");
+                strcat(command, line->redirect_input);
+                strcat(command, " ");
+            }
             if (i + 1 != line->ncommands){
                 strcat(command, "| ");
+            } else {
+                if (line->redirect_output){
+                    strcat(command, " > ");
+                    strcat(command, line->redirect_output);
+                    strcat(command, " ");
+                }
+                if (line->redirect_error){
+                    strcat(command, " &> ");
+                    strcat(command, line->redirect_error);
+                    strcat(command, " ");
+                }
             }
         }
 	strcat(command, "&");
@@ -48,32 +64,22 @@ void exec_line(tline* line) {
     if (line->background == 1 || line->redirect_input != NULL || line->redirect_output != NULL || line->redirect_error != NULL){
 
 		if (line->redirect_input != NULL) {
-			saved_std[STDIN_FILENO] = redirect_input(line->redirect_input);
-		} else if (line->background) {
-			saved_std[STDIN_FILENO] = redirect_input("/dev/null");
-		}
-		if (saved_std[STDIN_FILENO] == -1) {
-			fprintf(stderr, RED "[!] Error: %s" RESET, strerror(errno));
-			exit(EXIT_FAILURE);
+            if ((saved_std[STDIN_FILENO] = redirect_input(line->redirect_input)) == -1) {
+                fprintf(stderr, RED "[!] Error: %s" RESET, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
 		}
 		if (line->redirect_output != NULL) {
-			saved_std[STDOUT_FILENO] = redirect_output(line->redirect_output);
-		} else if (line->background) {
-			saved_std[STDOUT_FILENO] = redirect_output("/dev/null");
-		}
-		if (saved_std[STDOUT_FILENO] == -1) {
-			fprintf(stderr, RED "[!] Error: %s" RESET, strerror(errno));
-			exit(EXIT_FAILURE);
+            if ((saved_std[STDOUT_FILENO] = redirect_output(line->redirect_output)) == -1) {
+                fprintf(stderr, RED "[!] Error: %s" RESET, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
 		}
 		if (line->redirect_error != NULL) {
-			saved_std[STDERR_FILENO] = redirect_error(line->redirect_error);
-		} else if (line->background) {
-			saved_std[STDERR_FILENO] = redirect_error("/dev/null");
-		}
-		saved_std[STDERR_FILENO] = redirect_error("/dev/null");
-		if (saved_std[STDERR_FILENO] == -1) {
-			fprintf(stderr, RED "[!] Error: %s" RESET, strerror(errno));
-			exit(EXIT_FAILURE);
+            if ((saved_std[STDERR_FILENO] = redirect_error(line->redirect_error)) == -1) {
+                fprintf(stderr, RED "[!] Error: %s" RESET, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
 		}
     }
 
@@ -123,7 +129,6 @@ void exec_line(tline* line) {
             execvp(line->commands[i].argv[0], line->commands[i].argv);
             fprintf(stderr, RED "[!] Error al ejecutar el comando %s.\n" RESET, line->commands[i].argv[0]);
             exit(EXIT_FAILURE);
-
         }else {
 			if (line->background == 1) {
                 set_pid(&job, pid);
@@ -138,21 +143,21 @@ void exec_line(tline* line) {
     }
 
 	// Si se ha redireccionado el input, volver al estado original
-    if (line->redirect_input != NULL || line->background == 1){
+    if (line->redirect_input != NULL){
     	if (redirect_std_fd(STDIN_FILENO, saved_std[STDIN_FILENO]) == -1){
 			fprintf(stderr, "[!] Error: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}
 	// Si se ha redireccionado el output, volver al estado original
-    if (line->redirect_output != NULL || line->background == 1){
+    if (line->redirect_output != NULL){
     	if (redirect_std_fd(STDOUT_FILENO, saved_std[STDOUT_FILENO]) == -1){
 			fprintf(stderr, "[!] Error: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
     }
 	// Si se han redireccionado los errores, volver al estado original
-    if (line->redirect_error != NULL || line->background == 1){
+    if (line->redirect_error != NULL){
     	if (redirect_std_fd(STDERR_FILENO, saved_std[STDERR_FILENO]) == -1){
 			fprintf(stderr, "[!] Error: %s", strerror(errno));
 			exit(EXIT_FAILURE);
@@ -166,7 +171,7 @@ void exec_line(tline* line) {
 		}
 	} else {
 		restore_line(line, command);
-        printf("[%d]+ Running ", pid);
+        printf("[%d]+ Running\t\t\t", pid);
         printf("%s\n", command);
 		set_command(&job, command);
 		save_job(&job);
