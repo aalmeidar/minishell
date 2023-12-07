@@ -52,7 +52,7 @@ void sig_handler(int sig){
 }
 
 void exec_line(tline* line) {
-	int pipes[line->ncommands - 1][2], i, j, saved_std[3];
+	int pipes[line->ncommands - 1][2], i, j, saved_std[3], pids[line->ncommands];
 	char command[1024];
 	job_t job;
 
@@ -83,14 +83,6 @@ void exec_line(tline* line) {
 		}
     }
 
-	// Redireccionar los errores si está indicado
-    if (line->redirect_error != NULL) {
-    	saved_std[STDERR_FILENO] = redirect_error(line->redirect_error);
-		if (saved_std[STDERR_FILENO] == -1) {
-			fprintf(stderr,  RED "[!] Error: %s" RESET, strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-	}
 
     // Se crean los pipes de la matriz de pipes y se comprueba si ha ocurrido algún error
     for (i = 0; i < line->ncommands - 1; i++) {
@@ -130,9 +122,7 @@ void exec_line(tline* line) {
             fprintf(stderr, RED "[!] Error al ejecutar el comando %s.\n" RESET, line->commands[i].argv[0]);
             exit(EXIT_FAILURE);
         }else {
-			if (line->background == 1) {
-                set_pid(&job, pid);
-			}
+			pids[i] = pid;
 		}
     }
 
@@ -167,12 +157,15 @@ void exec_line(tline* line) {
 	// Se espera a que todos los hijos acaben si no esta en background
 	if (line->background == 0) {
 		for(i = 0; i < line->ncommands; i++) {
-			wait(NULL);
+			waitpid(pids[i], NULL, 0);
 		}
 	} else {
 		restore_line(line, command);
         printf("[%d]+ Running\t\t\t", pid);
         printf("%s\n", command);
+        for(i = 0; i < line->ncommands; i++) {
+            set_pid(&job, pids[i]);
+        }
 		set_command(&job, command);
 		save_job(&job);
 	}

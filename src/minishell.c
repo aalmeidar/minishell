@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#include <unistd.h>
 #include "exec.h"
 #include "builtin.h"
 #include "utils.h"

@@ -93,7 +93,7 @@ void pop_pid(stackJobs_t *s, pid_t pid) {
 
 // Si output es distinto de 0, se saca por STDOUT log.
 void check_jobs_stack(stackJobs_t* s, int output) {
-	pid_t pid, i, j, finished, * pids;
+	pid_t pid, i, j, finished, error, * pids;
 	char c;
 	char command[1024];
 	node_t *node;
@@ -103,11 +103,13 @@ void check_jobs_stack(stackJobs_t* s, int output) {
 	node = s->top;
 	while (node != NULL) {
         finished = 0;
+        error = 0;
         pids = get_pids(&(node->job));
         for (j = 0; j < node->job.index; j++){
             pid = waitpid(pids[j], NULL, WNOHANG);
             if (pid < 0) {
                 // Error
+                error++;
                 continue;
             }else if (pid != 0){
                 finished++;
@@ -119,7 +121,7 @@ void check_jobs_stack(stackJobs_t* s, int output) {
         } else if (node == s->top) {
             c = '+';
         }
-        if (finished == node->job.index) { // El proceso ha terminado
+        if (finished == node->job.index || error == node->job.index) { // El proceso ha terminado
 			if(output) {
                 get_command(&(node->job), command);
                 printf("[%d]%c %d  Hecho\t\t\t%s\n", i, c, pids[node->job.index-1], command);
