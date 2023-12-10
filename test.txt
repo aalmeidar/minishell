@@ -1,1 +1,0 @@
-Root:x:0:0:Root:/Root:/bin/bash
