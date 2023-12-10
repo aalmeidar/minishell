@@ -15,11 +15,19 @@ int main(void){
 	prompt();
     while (fgets(buf, 1024, stdin)) {
         line = tokenize(buf);
-        check_jobs(0);
         if (line == NULL || line->commands==NULL ) {
             prompt();
             continue;
         }
+
+        // Comprobar si el comando a ejecutar es jobs
+        if (strcmp(line->commands[0].argv[0], "jobs") == 0) {
+            jobs();
+            prompt();
+            continue;
+        }
+
+        check_jobs(0);
 
 		// Comprobar si el comando a ejecutar es cd
 		if (strcmp(line->commands[0].argv[0], "cd") == 0) {
@@ -27,13 +35,6 @@ int main(void){
 			prompt();
 			continue;
 		}
-	
-		// Comprobar si el comando a ejecutar es jobs
-		if (strcmp(line->commands[0].argv[0], "jobs") == 0) {
-			jobs();
-			prompt();
-            continue;
-    	}
 
 		// Comprobar si el comando a ejecutar es fg
     	if (strcmp(line->commands[0].argv[0], "fg") == 0) {
