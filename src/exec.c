@@ -52,9 +52,17 @@ void sig_handler(int sig){
 }
 
 void exec_line(tline* line) {
-	int pipes[line->ncommands - 1][2], i, j, saved_std[3], pids[line->ncommands];
+	int **pipes, i, j, saved_std[3], *pids;
 	char command[1024];
 	job_t job;
+
+	pipes = (int**) malloc(sizeof(int*)*(line->ncommands-1));
+	for (i = 0; i < line->ncommands; i++) {
+		pipes[i] = (int*) malloc(sizeof(int)*2);
+	}
+
+	pids = (int*) malloc(sizeof(int)*line->ncommands);
+
 
     if (line->background == 0){
         signal(SIGINT, sig_handler);
@@ -169,4 +177,11 @@ void exec_line(tline* line) {
 		set_command(&job, command);
 		save_job(&job);
 	}
+
+	for (i = 0; i<line->ncommands; i++) {
+		free(pipes[i]);
+	}
+	free(pipes);
+
+	free(pids);
 }
