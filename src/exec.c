@@ -12,7 +12,19 @@
 #include "background.h"
 #include "job.h"
 
+
 pid_t pid, pgid_fg;
+
+
+void sig_handler(int sig){
+    if(kill(-pgid_fg, SIGKILL) == -1) {
+        fprintf(stderr, "[!] Error killing %d: %s", pgid_fg, strerror(errno));
+    }
+}
+
+void set_pgid_fg(pid_t pgid) {
+    pgid_fg = pgid;
+}
 
 void restore_line(tline* line, char* command) {
 	int i, j;
@@ -45,16 +57,6 @@ void restore_line(tline* line, char* command) {
 	strcat(command, "&");
 }
 
-
-void sig_handler(int sig){
-    if(kill(-pgid_fg, SIGKILL) == -1) {
-        fprintf(stderr, "[!] Error killing %d: %s", pgid_fg, strerror(errno));
-    }
-}
-
-void set_pgid_fg(pid_t pgid) {
-    pgid_fg = pgid;
-}
 
 void exec_line(tline* line) {
 	int **pipes, i, j, saved_std[3], *pids, pgid;

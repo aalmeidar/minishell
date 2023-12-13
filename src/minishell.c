@@ -11,7 +11,6 @@ int main(void){
     init_jobs();
     char buf[1024];
     tline * line;
-
 	prompt();
     while (fgets(buf, 1024, stdin)) {
         signal(SIGINT, SIG_IGN);
