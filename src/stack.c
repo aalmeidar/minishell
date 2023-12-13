@@ -51,16 +51,17 @@ job_t get(stackJobs_t* s, int index) {
     int m, i;
     node_t* node;
     m = (size_stack(s)/2);
-    if (index <= m) {
-        i = 0;
+    if (index >= m && index < size_stack(s)) {
+        i = size_stack(s)-1;
         node = s->top;
-        while (i < index) {
+        while (i != index) {
             node = node->next;
-            i++;
+            i--;
         }
-    } else if (m < index && index < size_stack(s)) {
-        i = size_stack(s) - 1;
-        while (i > index) {
+    } else if (m > index) {
+        i = 0;
+        node = s->bot;
+        while (i != index) {
             node = node->prev;
             i--;
         }
@@ -117,12 +118,12 @@ void pop_pid(stackJobs_t* s, pid_t pid) {
 }
 
 void check_jobs_stack(stackJobs_t* s, int output) {
-    int i, j, error, finished;
+    int i, j, error, finished, deleted;
     pid_t *pids, pid;
-    node_t *node;
+    node_t *node, *tmp;
     char c, command[1024];
-
     i = 1;
+    tmp = NULL;
     node = s->bot;
 
     while (node != NULL) {
@@ -138,6 +139,7 @@ void check_jobs_stack(stackJobs_t* s, int output) {
                 finished++;
             }
         }
+        tmp = node->prev;
         c = ' ';
         if (node == s->top->next) {
             c = '-';
@@ -145,16 +147,15 @@ void check_jobs_stack(stackJobs_t* s, int output) {
             c = '+';
         }
         if (finished == node->job.index || error == node->job.index) { // El proceso ha terminado
-            if(output) {
-                get_command(&(node->job), command);
-                printf("[%d]%c %d  Hecho\t\t\t%s\n", i, c, pids[node->job.index-1], command);
-            }
+            get_command(&(node->job), command);
+            printf("[%d]%c %d  Hecho\t\t\t%s\n", i, c, pids[node->job.index-1], command);
+
             pop_pid(s, get_pids(&(node->job))[node->job.index-1]);
         } else if (output != 0) {
             get_command(&(node->job), command);
             printf("[%d]%c %d  Ejecutando\t\t\t%s\n", i, c, pids[node->job.index-1], command);
         }
-        node = node->prev;
+        node = tmp;
         i++;
     }
 }
