@@ -48,7 +48,7 @@ void restore_line(tline* line, char* command) {
 
 void sig_handler(int sig){
     if (pid == 0){
-        kill(getppid(), SIGKILL);
+        kill(getpid(), SIGKILL);
     }
 }
 
@@ -64,12 +64,13 @@ void exec_line(tline* line) {
 
 	pids = (int*) malloc(sizeof(int)*line->ncommands);
 
-
+    /*
     if (line->background == 0){
         signal(SIGINT, sig_handler);
     } else {
         signal(SIGINT, SIG_IGN);
     }
+     */
 
 	// Redireccionar STDIN, STDOUT, STDERR.
     if (line->background == 1 || line->redirect_input != NULL || line->redirect_output != NULL || line->redirect_error != NULL){
@@ -105,6 +106,7 @@ void exec_line(tline* line) {
 
     // Por cada comando se crea un proceso
     for (i = 0; i < line->ncommands; i++) {
+
         job = init_job();
         pid = fork();
 
@@ -113,6 +115,7 @@ void exec_line(tline* line) {
             exit(EXIT_FAILURE);
 
         } else if (pid == 0) {
+            signal(SIGINT, SIG_DFL);
             if (i != 0) {
                 // Si el hijo no es el primero comando leo la entrada del extremo de salida pipe i - 1
                 dup2(pipes[i - 1][0], STDIN_FILENO);
@@ -171,6 +174,7 @@ void exec_line(tline* line) {
 			waitpid(pids[i], NULL, 0);
 		}
 	} else {
+        signal(SIGINT, sig_handler);
 		restore_line(line, command);
         printf("[%d]+ Running\t\t\t", pid);
         printf("%s\n", command);
