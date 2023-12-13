@@ -13,6 +13,25 @@
 #include "job.h"
 
 pid_t pid;
+pid_t * pids_fg;
+int index_fg;
+
+void set_pid_fg(pid_t * pid_fg, int n){
+    pids_fg = pid_fg;
+    index_fg = n;
+}
+
+
+void sig_handler(int sig) {
+    if (pid == 0) {
+        kill(getpid(), SIGKILL);
+    } else {
+        for (int i = 0; i < index_fg; i++) {
+            kill(pids_fg[i], SIGKILL);
+        }
+    }
+}
+
 
 void restore_line(tline* line, char* command) {
 	int i, j;
@@ -45,12 +64,6 @@ void restore_line(tline* line, char* command) {
 	strcat(command, "&");
 }
 
-
-void sig_handler(int sig){
-    if (pid == 0){
-        kill(getppid(), SIGKILL);
-    }
-}
 
 void exec_line(tline* line) {
 	int **pipes, i, j, saved_std[3], *pids;

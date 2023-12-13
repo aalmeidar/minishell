@@ -179,6 +179,7 @@ void fg_job_stack(char * arg, stackJobs_t * s) {
     pop_pid(s, pids[j.index-1]);
     printf("%s\n", j.command);
     signal(SIGINT, sig_handler);
+    set_pid_fg(pids, j.index);
     for (i = 0; i < j.index; i++){
         waitpid(pids[i], NULL, 0);
     }

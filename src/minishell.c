@@ -11,9 +11,9 @@ int main(void){
     init_jobs();
     char buf[1024];
     tline * line;
-    signal(SIGINT, SIG_IGN);
 	prompt();
     while (fgets(buf, 1024, stdin)) {
+        signal(SIGINT, SIG_IGN);
         line = tokenize(buf);
         if (line == NULL || line->commands==NULL ) {
             prompt();
