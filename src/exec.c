@@ -12,26 +12,19 @@
 #include "background.h"
 #include "job.h"
 
-pid_t pid;
-pid_t * pids_fg;
-int index_fg;
 
-void set_pid_fg(pid_t * pid_fg, int n){
-    pids_fg = pid_fg;
-    index_fg = n;
-}
+pid_t pid, pgid_fg;
 
 
-void sig_handler(int sig) {
-    if (pid == 0) {
-        kill(getpid(), SIGKILL);
-    } else {
-        for (int i = 0; i < index_fg; i++) {
-            kill(pids_fg[i], SIGKILL);
-        }
+void sig_handler(int sig){
+    if(kill(-pgid_fg, SIGKILL) == -1) {
+        fprintf(stderr, "[!] Error killing %d: %s", pgid_fg, strerror(errno));
     }
 }
 
+void set_pgid_fg(pid_t pgid) {
+    pgid_fg = pgid;
+}
 
 void restore_line(tline* line, char* command) {
 	int i, j;
@@ -66,9 +59,11 @@ void restore_line(tline* line, char* command) {
 
 
 void exec_line(tline* line) {
-	int **pipes, i, j, saved_std[3], *pids;
+	int **pipes, i, j, saved_std[3], *pids, pgid;
 	char command[1024];
 	job_t job;
+
+    pgid = 0;
 
 	pipes = (int**) malloc(sizeof(int*)*(line->ncommands-1));
 	for (i = 0; i < line->ncommands; i++) {
@@ -76,13 +71,6 @@ void exec_line(tline* line) {
 	}
 
 	pids = (int*) malloc(sizeof(int)*line->ncommands);
-
-
-    if (line->background == 0){
-        signal(SIGINT, sig_handler);
-    } else {
-        signal(SIGINT, SIG_IGN);
-    }
 
 	// Redireccionar STDIN, STDOUT, STDERR.
     if (line->background == 1 || line->redirect_input != NULL || line->redirect_output != NULL || line->redirect_error != NULL){
@@ -118,6 +106,7 @@ void exec_line(tline* line) {
 
     // Por cada comando se crea un proceso
     for (i = 0; i < line->ncommands; i++) {
+
         job = init_job();
         pid = fork();
 
@@ -126,6 +115,11 @@ void exec_line(tline* line) {
             exit(EXIT_FAILURE);
 
         } else if (pid == 0) {
+            signal(SIGINT, SIG_DFL);
+
+            if (line->background != 0) {
+                signal(SIGINT, SIG_IGN);
+            }
             if (i != 0) {
                 // Si el hijo no es el primero comando leo la entrada del extremo de salida pipe i - 1
                 dup2(pipes[i - 1][0], STDIN_FILENO);
@@ -146,6 +140,12 @@ void exec_line(tline* line) {
             fprintf(stderr, RED "[!] Error al ejecutar el comando %s.\n" RESET, line->commands[i].argv[0]);
             exit(EXIT_FAILURE);
         }else {
+            if(line->background != 0) {
+                if (pgid == 0) {
+                    pgid = pid;
+                }
+                setpgid(pid, pgid);
+            }
 			pids[i] = pid;
 		}
     }
