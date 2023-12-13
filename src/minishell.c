@@ -38,7 +38,7 @@ int main(void){
 
 		// Comprobar si el comando a ejecutar es fg
     	if (strcmp(line->commands[0].argv[0], "fg") == 0) {
-			fg(line->commands[0].argv[1]);
+            fg(line->commands[0].argv[1]);
 			prompt();
         	continue;
     	}

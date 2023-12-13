@@ -45,6 +45,7 @@ void restore_line(tline* line, char* command) {
 	strcat(command, "&");
 }
 
+
 void sig_handler(int sig){
     if (pid == 0){
         kill(getppid(), SIGKILL);
@@ -66,6 +67,8 @@ void exec_line(tline* line) {
 
     if (line->background == 0){
         signal(SIGINT, sig_handler);
+    } else {
+        signal(SIGINT, SIG_IGN);
     }
 
 	// Redireccionar STDIN, STDOUT, STDERR.
