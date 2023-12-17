@@ -4,5 +4,5 @@
 #include "parser.h"
 void set_pgid_fg(pid_t pgid);
 void exec_line(tline* line);
-void sig_handler(int sig);
+void sig_handler();
 #endif

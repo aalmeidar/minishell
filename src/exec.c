@@ -16,7 +16,7 @@
 pid_t pid, pgid_fg;
 
 
-void sig_handler(int sig){
+void sig_handler(){
     if(kill(-pgid_fg, SIGKILL) == -1) {
         fprintf(stderr, "[!] Error killing %d: %s", pgid_fg, strerror(errno));
     }

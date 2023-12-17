@@ -118,7 +118,7 @@ void pop_pid(stackJobs_t* s, pid_t pid) {
 }
 
 void check_jobs_stack(stackJobs_t* s, int output) {
-    int i, j, error, finished, deleted;
+    int i, j, error, finished;
     pid_t *pids, pid;
     node_t *node, *tmp;
     char c, command[1024];
