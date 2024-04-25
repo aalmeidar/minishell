@@ -66,7 +66,7 @@ void exec_line(tline* line) {
     pgid = 0;
 
 	pipes = (int**) malloc(sizeof(int*)*(line->ncommands-1));
-	for (i = 0; i < line->ncommands; i++) {
+	for (i = 0; i < line->ncommands-1; i++) {
 		pipes[i] = (int*) malloc(sizeof(int)*2);
 	}
 
@@ -194,7 +194,7 @@ void exec_line(tline* line) {
 		save_job(&job);
 	}
 
-	for (i = 0; i<line->ncommands; i++) {
+	for (i = 0; i<line->ncommands-1; i++) {
 		free(pipes[i]);
 	}
 	free(pipes);

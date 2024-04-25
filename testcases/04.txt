@@ -1,0 +1,1 @@
+cat /etc/passwd | grep root | cut -d: -f1
